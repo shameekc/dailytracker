@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Daily Tracker</title>
+  <style>
+    :root {
+      --bg: #0c0c10; --s1: #13131a; --s2: #1a1a24; --s3: #22222e; --bd: #2e2e3e;
+      --tx: #e6e6f0; --mu: #58587a; --mu2: #8888a8;
+      --pu: #7c6fff; --bl: #4facfe; --gr: #2ecc71; --or: #fd9644; --pi: #ff6b9d; --rd: #ff5c5c; --te: #0fbcf9;
+      --rr: 14px; --rs: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--tx); min-height: 100vh; padding-bottom: 80px; }
+
+    /* ── HEADER ── */
+    .hdr { position: sticky; top: 0; z-index: 100; background: rgba(12,12,16,0.96); backdrop-filter: blur(12px); border-bottom: 1px solid var(--bd); padding: 12px 16px 0; }
+    .hdr-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .logo { font-size: 18px; font-weight: 800; letter-spacing: -.5px; }
+    .logo span { color: var(--pu); }
+    .dnav { display: flex; align-items: center; gap: 8px; }
+    .dnav button { background: var(--s2); border: 1px solid var(--bd); color: var(--tx); border-radius: var(--rs); width: 30px; height: 30px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: background .15s; }
+    .dnav button:hover { background: var(--s3); }
+    .dlbl { font-size: 12px; font-weight: 700; color: var(--mu2); min-width: 88px; text-align: center; }
+    .tabs { display: flex; }
+    .tab { flex: 1; padding: 10px 0 12px; text-align: center; font-size: 13px; font-weight: 600; color: var(--mu); cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; user-select: none; }
+    .tab.on { color: var(--pu); border-bottom-color: var(--pu); }
+
+    /* ── PAGE ── */
+    .pg { padding: 16px; }
+
+    /* ── SHARED ── */
+    .sec { margin-bottom: 20px; }
+    .slbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--mu); margin-bottom: 8px; padding-left: 2px; }
+    .card { background: var(--s1); border: 1px solid var(--bd); border-radius: var(--rr); padding: 13px 14px; margin-bottom: 8px; transition: border-color .2s; }
+    .card.done { border-color: rgba(46,204,113,.38); }
+    .row { display: flex; align-items: center; gap: 12px; }
+    .ico { font-size: 19px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--s2); border-radius: 10px; flex-shrink: 0; }
+    .lbl { font-size: 14px; font-weight: 600; }
+    .sub { font-size: 12px; color: var(--mu2); margin-top: 2px; }
+    .pbar { height: 3px; background: var(--bd); border-radius: 99px; margin-top: 7px; overflow: hidden; }
+    .pbar-f { height: 100%; border-radius: 99px; transition: width .5s; }
+
+    /* ── STEPPER ── */
+    .step { display: flex; align-items: center; background: var(--s2); border: 1px solid var(--bd); border-radius: 10px; overflow: hidden; }
+    .step button { background: none; border: none; color: var(--tx); width: 36px; height: 38px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
+    .step button:active { background: var(--bd); }
+    .sv { min-width: 46px; text-align: center; font-size: 15px; font-weight: 700; }
+    .su { font-size: 10px; color: var(--mu); }
+
+    /* ── NUMBER INPUT ── */
+    .ni { display: flex; align-items: center; gap: 4px; background: var(--s2); border: 1px solid var(--bd); border-radius: 10px; padding: 5px 10px; }
+    .ni input { background: none; border: none; outline: none; color: var(--tx); font-size: 15px; font-weight: 700; width: 64px; text-align: center; }
+    .ni .nu { font-size: 11px; color: var(--mu); }
+
+    /* ── CHECKBOX ── */
+    .cb { width: 26px; height: 26px; border-radius: 7px; border: 2px solid var(--bd); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; transition: all .15s; flex-shrink: 0; }
+    .cb.on { background: var(--gr); border-color: var(--gr); color: #000; }
+    .cb.on::after { content: '✓'; }
+
+    /* ═══════════════════════════════════
+       DASHBOARD
+    ═══════════════════════════════════ */
+    .hero { background: linear-gradient(135deg, var(--s1), var(--s2)); border: 1px solid var(--bd); border-radius: var(--rr); padding: 16px 18px; display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+    .hero-ring { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
+    .hero-ring svg { transform: rotate(-90deg); }
+    .rbg { fill: none; stroke: var(--bd); stroke-width: 5; }
+    .rfl { fill: none; stroke: var(--pu); stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset .7s cubic-bezier(.4,0,.2,1); }
+    .rnum { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; }
+    .hero-info { flex: 1; }
+    .hero-info h2 { font-size: 18px; font-weight: 700; }
+    .hero-info p { font-size: 12px; color: var(--mu2); margin-top: 4px; }
+    .stk { background: var(--s3); border: 1px solid var(--bd); border-radius: 12px; padding: 8px 14px; text-align: center; }
+    .stk-n { font-size: 20px; font-weight: 800; color: var(--or); line-height: 1; }
+    .stk-l { font-size: 10px; color: var(--mu); margin-top: 3px; }
+
+    .mg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .mc { background: var(--s1); border: 1px solid var(--bd); border-radius: var(--rr); padding: 13px; }
+    .mc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+    .mc-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mu); }
+    .badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 5px; }
+    .badge.up { background: rgba(255,92,92,.15); color: var(--rd); }
+    .badge.dn { background: rgba(46,204,113,.15); color: var(--gr); }
+    .badge.ok { background: rgba(79,172,254,.15); color: var(--bl); }
+    .badge.na { background: var(--s2); color: var(--mu2); }
+    .mc-val { font-size: 22px; font-weight: 800; line-height: 1.1; }
+    .mc-unit { font-size: 12px; color: var(--mu2); font-weight: 600; margin-left: 2px; }
+    .mc-sub { font-size: 11px; color: var(--mu); margin-top: 3px; }
+    .spark { margin-top: 8px; }
+
+    .cc { background: var(--s1); border: 1px solid var(--bd); border-radius: var(--rr); padding: 16px; margin-bottom: 12px; }
+    .cc-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .cc-title { font-size: 14px; font-weight: 700; }
+    .cc-meta { font-size: 12px; color: var(--mu2); }
+
+    /* ═══════════════════════════════════
+       LOG
+    ═══════════════════════════════════ */
+    .qtap-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+    .qtap-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px; }
+    .qb { background: var(--s1); border: 1.5px solid var(--bd); border-radius: var(--rr); padding: 13px 8px; text-align: center; cursor: pointer; transition: all .15s; user-select: none; -webkit-tap-highlight-color: transparent; }
+    .qb:active { transform: scale(.96); }
+    .qb.on { background: rgba(46,204,113,.08); border-color: var(--gr); }
+    .qb.on-pu { background: rgba(124,111,255,.08); border-color: var(--pu); }
+    .qb .qi { font-size: 22px; margin-bottom: 4px; }
+    .qb .ql { font-size: 12px; font-weight: 700; color: var(--mu2); }
+    .qb.on .ql, .qb.on-pu .ql { color: var(--gr); }
+    .qb.on-pu .ql { color: var(--pu); }
+    .qb .qv { font-size: 11px; color: var(--mu); margin-top: 2px; }
+
+    /* macro block */
+    .mac-blk { background: var(--s1); border: 1px solid var(--bd); border-radius: var(--rr); padding: 13px 14px; margin-bottom: 8px; transition: border-color .2s; }
+    .mac-blk.done { border-color: rgba(46,204,113,.38); }
+    .mac-inputs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+    .mi { background: var(--s2); border: 1px solid var(--bd); border-radius: 10px; padding: 10px; }
+    .mi label { font-size: 10px; font-weight: 700; color: var(--mu); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 5px; }
+    .mi input { background: none; border: none; outline: none; color: var(--tx); font-size: 19px; font-weight: 800; width: 100%; }
+    .mi .mu { font-size: 11px; color: var(--mu); margin-top: 2px; }
+    .mac-total { display: flex; justify-content: space-between; align-items: center; margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--bd); }
+    .mbar { display: flex; height: 5px; border-radius: 99px; overflow: hidden; gap: 2px; margin-top: 7px; min-height: 5px; }
+    .mbar-s { border-radius: 99px; transition: flex .5s; min-width: 4px; }
+
+    /* water */
+    .wdrops { display: flex; gap: 5px; margin-top: 10px; }
+    .wd { flex: 1; aspect-ratio: 1; border-radius: 50%; border: 2px solid var(--bd); display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; background: var(--s2); transition: all .15s; max-width: 38px; -webkit-tap-highlight-color: transparent; }
+    .wd.on { background: rgba(79,172,254,.15); border-color: var(--bl); color: var(--bl); }
+    .wd:active { transform: scale(.88); }
+
+    /* fibre */
+    .fp { padding: 8px 16px; border-radius: 99px; border: 1.5px solid var(--bd); font-size: 13px; font-weight: 600; cursor: pointer; background: var(--s2); transition: all .15s; color: var(--mu2); -webkit-tap-highlight-color: transparent; }
+    .fp.on { background: rgba(46,204,113,.1); border-color: var(--gr); color: var(--gr); }
+
+    /* workout */
+    .wk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .wk-card { background: var(--s1); border: 1px solid var(--bd); border-radius: var(--rr); padding: 13px; transition: border-color .2s; }
+    .wk-card.done { border-color: rgba(46,204,113,.38); }
+    .wk-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; }
+    .wk-t { font-size: 13px; font-weight: 700; }
+    .wk-ta { width: 100%; background: var(--s2); border: 1px solid var(--bd); border-radius: 8px; color: var(--tx); font-family: inherit; font-size: 12px; padding: 8px 10px; resize: none; outline: none; min-height: 52px; transition: border-color .15s; }
+    .wk-ta:focus { border-color: var(--pu); }
+    .wk-ta::placeholder { color: var(--mu); }
+    .tog { position: relative; width: 46px; height: 26px; cursor: pointer; flex-shrink: 0; }
+    .tog input { opacity: 0; width: 0; height: 0; }
+    .tog-track { position: absolute; inset: 0; background: var(--bd); border-radius: 99px; transition: background .2s; }
+    .tog input:checked + .tog-track { background: var(--gr); }
+    .tog-thumb { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: left .2s; }
+    .tog input:checked ~ .tog-thumb { left: 23px; }
+
+    /* book row */
+    .book-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .book-pages { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+    .bpage { width: 18px; height: 18px; border-radius: 4px; background: var(--s2); border: 1px solid var(--bd); cursor: pointer; transition: all .15s; flex-shrink: 0; }
+    .bpage.on { background: var(--or); border-color: var(--or); }
+    .bpage:active { transform: scale(.85); }
+
+    /* notes */
+    .notes-ta { width: 100%; background: var(--s1); border: 1px solid var(--bd); border-radius: var(--rr); color: var(--tx); font-family: inherit; font-size: 13px; padding: 13px 14px; resize: none; outline: none; min-height: 80px; transition: border-color .15s; }
+    .notes-ta:focus { border-color: var(--pu); }
+    .notes-ta::placeholder { color: var(--mu); }
+
+    /* content input */
+    .content-ta { width: 100%; background: var(--s2); border: 1px solid var(--bd); border-radius: 8px; color: var(--tx); font-family: inherit; font-size: 13px; padding: 9px 10px; resize: none; outline: none; min-height: 46px; transition: border-color .15s; margin-top: 9px; }
+    .content-ta:focus { border-color: var(--pu); }
+    .content-ta::placeholder { color: var(--mu); }
+
+    /* ═══════════════════════════════════
+       HISTORY
+    ═══════════════════════════════════ */
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 16px; }
+    .cal-dlbl { font-size: 10px; color: var(--mu); text-align: center; padding-bottom: 4px; font-weight: 600; }
+    .cal-cell { aspect-ratio: 1; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; cursor: pointer; transition: opacity .15s; }
+    .cal-cell:hover { opacity: .75; }
+    .cal-cell.empty { background: transparent !important; cursor: default; color: transparent !important; }
+    .hist-item { background: var(--s1); border: 1px solid var(--bd); border-radius: var(--rr); padding: 13px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: border-color .15s; }
+    .hist-item:hover { border-color: var(--pu); }
+    .hist-sc { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; flex-shrink: 0; }
+    .hist-info { flex: 1; }
+    .hist-dt { font-size: 14px; font-weight: 700; }
+    .hist-mt { font-size: 12px; color: var(--mu2); margin-top: 2px; }
+
+    /* ═══════════════════════════════════
+       CELEBRATIONS
+    ═══════════════════════════════════ */
+    #confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 9999; }
+    .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--s2); border: 1px solid var(--bd); border-radius: 99px; padding: 10px 20px; font-size: 14px; font-weight: 700; z-index: 9998; opacity: 0; transition: all .35s cubic-bezier(.34,1.56,.64,1); white-space: nowrap; pointer-events: none; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    @keyframes pop-in { 0% { transform: scale(0.6); opacity: 0; } 70% { transform: scale(1.2); } 100% { transform: scale(1); opacity: 1; } }
+    .pop { animation: pop-in .3s ease; }
+    @keyframes celebrate-glow { 0%,100% { box-shadow: none; } 50% { box-shadow: 0 0 20px var(--gr), 0 0 40px rgba(46,204,113,.3); } }
+    .glow-celebrate { animation: celebrate-glow .6s ease; }
+  </style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+<div class="toast" id="toast"></div>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-top">
+    <div class="logo">Daily <span>Tracker</span></div>
+    <div class="dnav" id="dnavWrap" style="display:none">
+      <button id="prevDay">‹</button>
+      <div class="dlbl" id="dlbl">Today</div>
+      <button id="nextDay">›</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <div class="tab on" data-tab="log">Log</div>
+    <div class="tab" data-tab="dashboard">Dashboard</div>
+    <div class="tab" data-tab="history">History</div>
+  </div>
+</div>
+
+<div class="pg">
+
+<!-- ═══════════ LOG ═══════════ -->
+<div id="view-log">
+
+  <!-- Quick taps -->
+  <div class="sec-lbl slbl">Quick Log</div>
+  <div class="qtap-3">
+    <div class="qb" id="qb-multi" onclick="toggleQ('multivitamin','qb-multi')">
+      <div class="qi">💊</div><div class="ql">Multivitamin</div><div class="qv" id="qv-multi">tap</div>
+    </div>
+    <div class="qb" id="qb-mag" onclick="toggleQ('magnesium','qb-mag')">
+      <div class="qi">🔮</div><div class="ql">Magnesium</div><div class="qv" id="qv-mag">tap</div>
+    </div>
+    <div class="qb" id="qb-med" onclick="cycleQ('meditation','qb-med',[0,10,15,20,30])">
+      <div class="qi">🧘</div><div class="ql">Meditation</div><div class="qv" id="qv-med">tap</div>
+    </div>
+  </div>
+  <div class="qtap-2">
+    <div class="qb" id="qb-alc" onclick="toggleQ('noAlcohol','qb-alc')">
+      <div class="qi">🚫🍺</div><div class="ql">No Alcohol</div><div class="qv" id="qv-alc">tap</div>
+    </div>
+    <div class="qb" id="qb-cont" onclick="toggleQ('contentPublished','qb-cont')">
+      <div class="qi">✍️</div><div class="ql">Content</div><div class="qv" id="qv-cont">tap</div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="sec">
+    <div class="slbl">Body</div>
+
+    <div class="card" id="lc-weight">
+      <div class="row">
+        <div class="ico">⚖️</div>
+        <div style="flex:1"><div class="lbl">Weight</div><div class="sub" id="ls-weight">Enter today's weight</div></div>
+        <div class="ni"><input type="number" id="l-weight" min="30" max="300" step="0.1" placeholder="—" /><span class="nu">kg</span></div>
+      </div>
+    </div>
+
+    <div class="card" id="lc-fast">
+      <div class="row">
+        <div class="ico">🕐</div>
+        <div style="flex:1"><div class="lbl">Fasting</div><div class="sub" id="ls-fast">Hours fasted today</div></div>
+        <div class="step">
+          <button onclick="step('fast',-1)">−</button>
+          <div class="sv"><span id="lv-fast">0</span><div class="su">hrs</div></div>
+          <button onclick="step('fast',1)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="lc-steps">
+      <div class="row">
+        <div class="ico">👟</div>
+        <div style="flex:1">
+          <div class="lbl">Steps</div><div class="sub">Goal: 10,000</div>
+          <div class="pbar"><div class="pbar-f" id="lp-steps" style="width:0%;background:var(--bl)"></div></div>
+        </div>
+        <div class="ni"><input type="number" id="l-steps" min="0" max="100000" step="100" placeholder="—" /><span class="nu">steps</span></div>
+      </div>
+    </div>
+
+    <div class="card" id="lc-sleep">
+      <div class="row">
+        <div class="ico">😴</div>
+        <div style="flex:1"><div class="lbl">Sleep</div><div class="sub" id="ls-sleep">Goal: 7–9 hours</div></div>
+        <div class="step">
+          <button onclick="step('sleep',-.5)">−</button>
+          <div class="sv"><span id="lv-sleep">0</span><div class="su">hrs</div></div>
+          <button onclick="step('sleep',.5)">+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nutrition -->
+  <div class="sec">
+    <div class="slbl">Nutrition</div>
+
+    <div class="mac-blk" id="lc-macros">
+      <div class="row">
+        <div class="ico">🍽️</div>
+        <div style="flex:1"><div class="lbl">Calories & Macros</div><div class="sub" id="ls-macros">Enter today's food</div></div>
+      </div>
+      <div class="mac-inputs">
+        <div class="mi"><label>Protein</label><input type="number" id="l-protein" min="0" max="500" placeholder="0" oninput="onMacro()" /><div class="mu">grams</div></div>
+        <div class="mi"><label>Carbs</label><input type="number" id="l-carbs" min="0" max="999" placeholder="0" oninput="onMacro()" /><div class="mu">grams</div></div>
+        <div class="mi"><label>Fat</label><input type="number" id="l-fat" min="0" max="500" placeholder="0" oninput="onMacro()" /><div class="mu">grams</div></div>
+      </div>
+      <div class="mac-total">
+        <div style="display:flex;gap:12px">
+          <div style="font-size:11px;color:var(--pi)">■ Protein</div>
+          <div style="font-size:11px;color:var(--bl)">■ Carbs</div>
+          <div style="font-size:11px;color:var(--or)">■ Fat</div>
+        </div>
+        <div><span style="font-size:16px;font-weight:800" id="lv-cals">0</span><span style="font-size:12px;color:var(--mu);margin-left:3px">kcal</span></div>
+      </div>
+      <div class="mbar" id="mbar">
+        <div class="mbar-s" style="background:var(--pi)" id="mbar-p"></div>
+        <div class="mbar-s" style="background:var(--bl)" id="mbar-c"></div>
+        <div class="mbar-s" style="background:var(--or)" id="mbar-f"></div>
+      </div>
+    </div>
+
+    <div class="card" id="lc-water">
+      <div class="row">
+        <div class="ico">💧</div>
+        <div style="flex:1"><div class="lbl">Water</div><div class="sub" id="ls-water">Goal: 2L</div></div>
+        <div class="ni"><input type="number" id="l-water" min="0" max="10" step="0.1" placeholder="—" oninput="onWater()" /><span class="nu">L</span></div>
+      </div>
+      <div class="wdrops" id="wdrops"></div>
+    </div>
+
+    <div class="card" id="lc-fibre">
+      <div class="row">
+        <div class="ico">🥦</div>
+        <div style="flex:1"><div class="lbl">Fibre Before Meals</div><div class="sub" id="ls-fibre">Tap each meal</div></div>
+        <div style="display:flex;gap:7px">
+          <div class="fp" id="fp-0" onclick="togFibre(0)">B'fast</div>
+          <div class="fp" id="fp-1" onclick="togFibre(1)">Lunch</div>
+          <div class="fp" id="fp-2" onclick="togFibre(2)">Dinner</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mind & Learning -->
+  <div class="sec">
+    <div class="slbl">Mind & Learning</div>
+
+    <!-- Book pages -->
+    <div class="card" id="lc-book">
+      <div class="row" style="margin-bottom:10px">
+        <div class="ico">📖</div>
+        <div style="flex:1"><div class="lbl">Book Reading</div><div class="sub" id="ls-book">10 pages today (non-fiction)</div></div>
+        <div style="font-size:13px;font-weight:800;color:var(--or)" id="lv-book">0/10</div>
+      </div>
+      <div class="book-pages" id="book-pages"></div>
+    </div>
+
+    <!-- Content published -->
+    <div class="card" id="lc-content">
+      <div class="row">
+        <div class="ico">✍️</div>
+        <div style="flex:1">
+          <div class="lbl">Content Published</div>
+          <div class="sub" id="ls-content">Did you publish something today?</div>
+        </div>
+        <div class="cb" id="cb-content" onclick="togCheck('contentPublished','cb-content')"></div>
+      </div>
+      <textarea class="content-ta" id="l-content-note" placeholder="What did you publish? (article, post, video...)" oninput="saveF('contentNote',this.value)"></textarea>
+    </div>
+  </div>
+
+  <!-- Workout -->
+  <div class="sec">
+    <div class="slbl">Workout</div>
+
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:14px;font-weight:600">Rest Day</div>
+      <label class="tog"><input type="checkbox" id="rest-tog" onchange="onRest()" /><div class="tog-track"></div><div class="tog-thumb"></div></label>
+    </div>
+
+    <div id="wk-slots">
+      <div class="wk-grid">
+        <div class="wk-card" id="wkc-1">
+          <div class="wk-hdr">
+            <div class="wk-t">Session 1 <span style="color:var(--mu);font-weight:400;font-size:12px">AM</span></div>
+            <div class="cb" id="cb-wk1" onclick="togCheck('workout1','cb-wk1')"></div>
+          </div>
+          <textarea class="wk-ta" id="wk-n1" placeholder="Bench 4×8, rows 3×10..." oninput="saveF('workout1notes',this.value)"></textarea>
+        </div>
+        <div class="wk-card" id="wkc-2">
+          <div class="wk-hdr">
+            <div class="wk-t">Session 2 <span style="color:var(--mu);font-weight:400;font-size:12px">PM</span></div>
+            <div class="cb" id="cb-wk2" onclick="togCheck('workout2','cb-wk2')"></div>
+          </div>
+          <textarea class="wk-ta" id="wk-n2" placeholder="5km run, HIIT..." oninput="saveF('workout2notes',this.value)"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notes -->
+  <div class="sec">
+    <div class="slbl">Notes</div>
+    <textarea class="notes-ta" id="l-notes" placeholder="How did today feel?..." oninput="saveF('notes',this.value)"></textarea>
+  </div>
+
+</div><!-- end log -->
+
+<!-- ═══════════ DASHBOARD ═══════════ -->
+<div id="view-dashboard" style="display:none">
+
+  <div class="hero">
+    <div class="hero-ring">
+      <svg width="64" height="64" viewBox="0 0 64 64">
+        <circle class="rbg" cx="32" cy="32" r="27"/>
+        <circle class="rfl" id="d-ring" cx="32" cy="32" r="27" stroke-dasharray="169.6" stroke-dashoffset="169.6"/>
+      </svg>
+      <div class="rnum" id="d-rnum">0%</div>
+    </div>
+    <div class="hero-info">
+      <h2 id="d-lbl">Start tracking</h2>
+      <p id="d-sub">Today's score</p>
+    </div>
+    <div class="stk">
+      <div class="stk-n" id="d-streak">0</div>
+      <div class="stk-l">day streak</div>
+    </div>
+  </div>
+
+  <div class="mg">
+    <div class="mc">
+      <div class="mc-top"><div class="mc-lbl">⚖️ Weight</div><div class="badge na" id="mc-wbadge">—</div></div>
+      <div><span class="mc-val" id="mc-wval">—</span><span class="mc-unit">kg</span></div>
+      <div class="mc-sub">7-day avg</div>
+      <div class="spark" id="sp-w"></div>
+    </div>
+    <div class="mc">
+      <div class="mc-top"><div class="mc-lbl">👟 Steps</div><div class="badge na" id="mc-sbadge">—</div></div>
+      <div><span class="mc-val" id="mc-sval">—</span><span class="mc-unit">avg</span></div>
+      <div class="mc-sub">Last 7 days</div>
+      <div class="spark" id="sp-s"></div>
+    </div>
+    <div class="mc">
+      <div class="mc-top"><div class="mc-lbl">😴 Sleep</div><div class="badge na" id="mc-slbadge">—</div></div>
+      <div><span class="mc-val" id="mc-slval">—</span><span class="mc-unit">h avg</span></div>
+      <div class="mc-sub">Last 7 days</div>
+      <div class="spark" id="sp-sl"></div>
+    </div>
+    <div class="mc">
+      <div class="mc-top"><div class="mc-lbl">✅ Habits</div><div class="badge na" id="mc-cbadge">—</div></div>
+      <div><span class="mc-val" id="mc-cval">—</span><span class="mc-unit">% avg</span></div>
+      <div class="mc-sub">Last 7 days</div>
+      <div class="spark" id="sp-c"></div>
+    </div>
+  </div>
+
+  <div class="cc">
+    <div class="cc-hdr"><div class="cc-title">Weight Trend</div><div class="cc-meta" id="wt-rng">30 days</div></div>
+    <div id="ch-weight"></div>
+  </div>
+
+  <div class="cc">
+    <div class="cc-hdr"><div class="cc-title">Daily Steps</div><div class="cc-meta">Goal: 10,000</div></div>
+    <div id="ch-steps"></div>
+  </div>
+
+  <div class="cc">
+    <div class="cc-hdr"><div class="cc-title">Sleep Quality</div><div class="cc-meta">Goal: 7–9h</div></div>
+    <div id="ch-sleep"></div>
+  </div>
+
+  <div class="cc">
+    <div class="cc-hdr"><div class="cc-title">Habit Completion</div><div class="cc-meta">Goal: 80%</div></div>
+    <div id="ch-comp"></div>
+  </div>
+
+</div><!-- end dashboard -->
+
+<!-- ═══════════ HISTORY ═══════════ -->
+<div id="view-history" style="display:none">
+  <div class="cc">
+    <div class="cc-hdr">
+      <div class="cc-title" id="cal-title">June 2026</div>
+      <div style="display:flex;gap:6px">
+        <button style="background:var(--s2);border:1px solid var(--bd);color:var(--tx);border-radius:var(--rs);width:28px;height:28px;cursor:pointer;font-size:13px" onclick="calPrev()">‹</button>
+        <button style="background:var(--s2);border:1px solid var(--bd);color:var(--tx);border-radius:var(--rs);width:28px;height:28px;cursor:pointer;font-size:13px" onclick="calNext()">›</button>
+      </div>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+  <div id="hist-list"></div>
+</div>
+
+</div><!-- end pg -->
+
+<script>
+// ═══════════════════════════════════════════════
+// DATA MODEL
+// ═══════════════════════════════════════════════
+
+function defDay() {
+  return {
+    weight:'', fast:0, steps:'', sleep:0,
+    protein:'', carbs:'', fat:'', water:'',
+    fibre:[false,false,false],
+    multivitamin:false, magnesium:false, meditation:0,
+    noAlcohol:false, contentPublished:false, contentNote:'',
+    bookPages:0,
+    workout1:false, workout2:false, restDay:false,
+    workout1notes:'', workout2notes:'',
+    notes:''
+  };
+}
+
+function dk(date) { return 'dt_' + date; }
+function loadDay(date) { try { return Object.assign(defDay(), JSON.parse(localStorage.getItem(dk(date)))); } catch { return defDay(); } }
+function saveDay(date, data) { localStorage.setItem(dk(date), JSON.stringify(data)); }
+function todayKey() { return new Date().toISOString().slice(0,10); }
+
+// ═══════════════════════════════════════════════
+// SEEDED RANDOM
+// ═══════════════════════════════════════════════
+
+function lcg(seed) {
+  let s = (seed * 1664525 + 1013904223) >>> 0;
+  return function() { s = (s * 1664525 + 1013904223) >>> 0; return s / 0xFFFFFFFF; };
+}
+
+// ═══════════════════════════════════════════════
+// SAMPLE DATA (60 days)
+// ═══════════════════════════════════════════════
+
+function generateSampleData() {
+  const today = new Date();
+  for (let i = 60; i >= 1; i--) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0,10);
+    if (localStorage.getItem(dk(key))) continue;
+    const r = lcg(i * 113 + 37);
+
+    const wBase = 80.4 - (60 - i) * 0.038;
+    const weight = (wBase + (r() - 0.5) * 0.65).toFixed(1);
+
+    const dow = d.getDay();
+    const isRest = dow === 0 || (dow === 6 && r() > 0.35);
+    const steps = Math.round((isRest ? 3500 : 7000) + r() * (isRest ? 3000 : 5000));
+    const sleep = Math.round((5.5 + r() * 3.5) * 2) / 2;
+    const fastOpts = [14,14,15,16,16,16,17,18];
+    const fast = fastOpts[Math.floor(r() * fastOpts.length)];
+    const protein = Math.round(128 + r() * 70);
+    const carbs = Math.round(150 + r() * 110);
+    const fat = Math.round(48 + r() * 42);
+    const water = Math.round((1.4 + r() * 1.4) * 10) / 10;
+    const meditation = r() > 0.22 ? Math.round(10 + r() * 22) : 0;
+    const multivitamin = r() > 0.14;
+    const magnesium = r() > 0.09;
+    const noAlcohol = r() > 0.05;
+    const contentPublished = r() > 0.25;
+    const bookPages = Math.round(r() > 0.2 ? 8 + r() * 12 : r() * 8);
+    const fibre = [r() > 0.18, r() > 0.22, r() > 0.28];
+    const workout1 = !isRest && r() > 0.1;
+    const workout2 = !isRest && r() > 0.18;
+
+    const amNotes = ['Bench 4×8, OHP 3×10, rows 4×10','Squats 4×6, deadlifts 3×5, leg press 3×12','Push day — chest + shoulders + tris','Pull day — back + biceps','Full body — compounds + accessory'];
+    const pmNotes = ['5km run — 26min','HIIT 25min + core','Cycling 40min Z2','Incline walk 45min','Yoga + mobility 30min'];
+    const idx1 = Math.floor(r() * amNotes.length);
+    const idx2 = Math.floor(r() * pmNotes.length);
+    const contentItems = ['Instagram post on fasting + weight loss','LinkedIn article on productivity habits','Twitter thread on morning routines','Blog post on intermittent fasting science','YouTube video: 30-day transformation','Podcast episode on health & discipline','Newsletter: weekly health roundup'];
+    const cIdx = Math.floor(r() * contentItems.length);
+
+    saveDay(key, {
+      weight, fast, steps: steps.toString(), sleep,
+      protein: protein.toString(), carbs: carbs.toString(), fat: fat.toString(),
+      water: water.toString(), fibre,
+      multivitamin, magnesium, meditation,
+      noAlcohol, contentPublished,
+      contentNote: contentPublished ? contentItems[cIdx] : '',
+      bookPages: Math.min(bookPages, 20),
+      workout1, workout2, restDay: isRest,
+      workout1notes: isRest ? '' : amNotes[idx1],
+      workout2notes: isRest ? '' : pmNotes[idx2],
+      notes:''
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════
+// SCORING  (15 habits)
+// ═══════════════════════════════════════════════
+
+function score(d) {
+  let done = 0, total = 15;
+  if (d.weight && +d.weight > 0) done++;
+  if (d.fast >= 12) done++;
+  if (+d.steps >= 10000) done++;
+  if (d.sleep >= 7 && d.sleep <= 9) done++;
+  const p = +d.protein||0, c = +d.carbs||0, f = +d.fat||0;
+  if (p*4 + c*4 + f*9 > 0) done++;
+  if (p >= (+d.weight||70)*1.6) done++;
+  if (+d.water >= 2) done++;
+  if ((d.fibre||[]).filter(Boolean).length >= 3) done++;
+  if (d.multivitamin) done++;
+  if (d.magnesium) done++;
+  if (d.meditation >= 5) done++;
+  if (d.noAlcohol) done++;
+  if (d.contentPublished) done++;
+  if (d.bookPages >= 10) done++;
+  if (d.restDay) done++;
+  else if (d.workout1 && d.workout2) done++;
+  else if (d.workout1 || d.workout2) done += 0.5;
+  return { done: Math.round(done), total, pct: Math.round((done / total) * 100) };
+}
+
+function kcal(d) { return Math.round((+d.protein||0)*4 + (+d.carbs||0)*4 + (+d.fat||0)*9); }
+
+// ═══════════════════════════════════════════════
+// CHARTS (pure SVG)
+// ═══════════════════════════════════════════════
+
+function lineChart(el, values, labels, opts = {}) {
+  const { color='#7c6fff', H=145, goal=null, goalColor='#2ecc71', unit='', dots=true, sparkMode=false } = opts;
+  const W=400, PL=sparkMode?0:36, PR=8, PT=sparkMode?2:10, PB=(sparkMode||!labels.length)?2:26;
+  const cW=W-PL-PR, cH=H-PT-PB;
+  const valid = values.filter(v=>v!=null&&!isNaN(v));
+  if (!valid.length) { el.innerHTML=''; return; }
+  let yMin=Math.min(...valid), yMax=Math.max(...valid);
+  if (goal!=null) { yMin=Math.min(yMin,goal*.9); yMax=Math.max(yMax,goal*1.1); }
+  const pad=(yMax-yMin)*.15||1; yMin-=pad; yMax+=pad; const yR=yMax-yMin;
+  const tx=i=>PL+(values.length<=1?cW/2:(i/(values.length-1))*cW);
+  const ty=v=>PT+(1-(v-yMin)/yR)*cH;
+
+  let segs=[], seg=[];
+  values.forEach((v,i)=>{
+    if(v==null||isNaN(v)){if(seg.length){segs.push([...seg]);seg=[];}return;}
+    seg.push([i,v]);
+  });
+  if(seg.length) segs.push(seg);
+
+  const pathPts=(pts,closed=false)=>{
+    if(!pts.length) return '';
+    let d=`M ${tx(pts[0][0])} ${ty(pts[0][1])}`;
+    for(let k=1;k<pts.length;k++){
+      const[pi,pv]=pts[k-1],[ci,cv]=pts[k];
+      const mx=(tx(pi)+tx(ci))/2;
+      d+=` C ${mx} ${ty(pv)},${mx} ${ty(cv)},${tx(ci)} ${ty(cv)}`;
+    }
+    if(closed){const lp=pts[pts.length-1];d+=` L ${tx(lp[0])} ${PT+cH} L ${tx(pts[0][0])} ${PT+cH} Z`;}
+    return d;
+  };
+
+  const gid='g'+(Math.random()*1e8|0).toString(36);
+  let grid='',gline='',fills='',paths='',dts='',xlabs='';
+
+  if(!sparkMode){
+    for(let g=0;g<=4;g++){
+      const gy=PT+(g/4)*cH, gv=yMax-(g/4)*yR;
+      grid+=`<line x1="${PL}" y1="${gy}" x2="${W-PR}" y2="${gy}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>`;
+      if(g<4){const lv=unit==='kg'?gv.toFixed(1):Math.abs(gv)>=1000?(gv/1000).toFixed(1)+'k':Math.round(gv);
+        grid+=`<text x="${PL-4}" y="${gy+4}" font-size="9" fill="rgba(255,255,255,.25)" text-anchor="end">${lv}</text>`;}
+    }
+    if(goal!=null&&goal>=yMin&&goal<=yMax){
+      const gy=ty(goal);
+      gline=`<line x1="${PL}" y1="${gy}" x2="${W-PR}" y2="${gy}" stroke="${goalColor}" stroke-width="1.5" stroke-dasharray="5 3" opacity=".6"/>`;
+    }
+    if(labels.length){
+      const step=Math.max(1,Math.ceil(labels.length/6));
+      labels.forEach((l,i)=>{
+        if(i%step===0||i===labels.length-1)
+          xlabs+=`<text x="${tx(i)}" y="${H-4}" font-size="9" fill="rgba(255,255,255,.3)" text-anchor="middle">${l}</text>`;
+      });
+    }
+  }
+
+  segs.forEach(sg=>{
+    fills+=`<path d="${pathPts(sg,true)}" fill="url(#${gid})"/>`;
+    paths+=`<path d="${pathPts(sg)}" fill="none" stroke="${color}" stroke-width="${sparkMode?1.5:2}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  });
+  if(dots&&!sparkMode){
+    values.forEach((v,i)=>{
+      if(v==null||isNaN(v)) return;
+      dts+=`<circle cx="${tx(i)}" cy="${ty(v)}" r="3" fill="${color}" stroke="#0c0c10" stroke-width="1.5"/>`;
+    });
+  }
+
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:${H}px;display:block;overflow:visible">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity="${sparkMode?.3:.2}"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    ${grid}${gline}${fills}${paths}${dts}${xlabs}
+  </svg>`;
+}
+
+function barChart(el, values, labels, opts = {}) {
+  const { color='#4facfe', H=120, goal=null, goalColor='#7c6fff' } = opts;
+  const W=400, PL=36, PR=8, PT=10, PB=labels.length?26:10;
+  const cW=W-PL-PR, cH=H-PT-PB;
+  const valid=values.filter(v=>v!=null&&!isNaN(v)&&v>0);
+  if(!valid.length){ el.innerHTML=''; return; }
+  const maxV=Math.max(...valid,goal||0)*1.12;
+  const bW=cW/values.length, gap=bW*.25;
+  let bars='',grid='',gline='',xlabs='';
+
+  for(let g=1;g<=4;g++){
+    const gy=PT+(g/4)*cH, gv=maxV-(g/4)*maxV;
+    grid+=`<line x1="${PL}" y1="${gy}" x2="${W-PR}" y2="${gy}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>`;
+    if(g>0&&g<4){const lv=gv>=1000?(gv/1000).toFixed(1)+'k':Math.round(gv);
+      grid+=`<text x="${PL-4}" y="${gy+4}" font-size="9" fill="rgba(255,255,255,.25)" text-anchor="end">${lv}</text>`;}
+  }
+  if(goal!=null){
+    const gy=PT+(1-goal/maxV)*cH;
+    gline=`<line x1="${PL}" y1="${gy}" x2="${W-PR}" y2="${gy}" stroke="${goalColor}" stroke-width="1.5" stroke-dasharray="5 3" opacity=".7"/>`;
+  }
+  values.forEach((v,i)=>{
+    if(!v||v<=0) return;
+    const bH=(v/maxV)*cH, x=PL+i*bW+gap/2, y=PT+cH-bH, w=bW-gap;
+    const met=goal!=null&&v>=goal;
+    bars+=`<rect x="${x}" y="${y}" width="${w}" height="${bH}" rx="3" fill="${met?'#2ecc71':color}" opacity=".85"/>`;
+  });
+  if(labels.length){
+    const step=Math.max(1,Math.ceil(labels.length/7));
+    labels.forEach((l,i)=>{
+      if(i%step===0||i===labels.length-1){
+        const x=PL+i*bW+bW/2;
+        xlabs+=`<text x="${x}" y="${H-4}" font-size="9" fill="rgba(255,255,255,.3)" text-anchor="middle">${l}</text>`;
+      }
+    });
+  }
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:${H}px;display:block">
+    ${grid}${gline}${bars}${xlabs}
+  </svg>`;
+}
+
+function sparkline(el, vals, color) {
+  lineChart(el, vals, [], { color, H:46, sparkMode:true, dots:false });
+}
+
+// ═══════════════════════════════════════════════
+// CELEBRATIONS
+// ═══════════════════════════════════════════════
+
+const canvas = document.getElementById('confetti-canvas');
+const ctx = canvas.getContext('2d');
+let particles = [], animId = null;
+let prevScore = -1;
+
+function launchConfetti(intensity = 1) {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const colors = ['#7c6fff','#2ecc71','#4facfe','#fd9644','#ff6b9d','#0fbcf9','#f9ca24','#ff5c5c'];
+  const count = Math.round(80 * intensity);
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: -10 - Math.random() * 60,
+      vx: (Math.random() - 0.5) * 4,
+      vy: 2 + Math.random() * 4,
+      w: 7 + Math.random() * 8,
+      h: 4 + Math.random() * 6,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      angle: Math.random() * Math.PI * 2,
+      spin: (Math.random() - 0.5) * 0.2,
+      life: 1,
+      decay: 0.008 + Math.random() * 0.006
+    });
+  }
+  if (!animId) animConfetti();
+}
+
+function animConfetti() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles = particles.filter(p => p.life > 0);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.12;
+    p.angle += p.spin; p.life -= p.decay;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.angle);
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+    ctx.restore();
+  });
+  if (particles.length > 0) animId = requestAnimationFrame(animConfetti);
+  else { animId = null; ctx.clearRect(0, 0, canvas.width, canvas.height); }
+}
+
+function showToast(msg, emoji = '') {
+  const t = document.getElementById('toast');
+  t.textContent = emoji ? emoji + ' ' + msg : msg;
+  t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function checkCelebration(d, newScore, oldScore) {
+  // Individual goal pops
+  if (!d._celebrated) d._celebrated = {};
+
+  if (+d.steps >= 10000 && !d._celebrated.steps) {
+    d._celebrated.steps = true;
+    showToast('10,000 steps crushed!', '🏃');
+  }
+  if (d.bookPages >= 10 && !d._celebrated.book) {
+    d._celebrated.book = true;
+    showToast('10 pages read — keep the streak!', '📖');
+  }
+  if (d.contentPublished && !d._celebrated.content) {
+    d._celebrated.content = true;
+    showToast('Content published today!', '🚀');
+  }
+  if (d.sleep >= 7 && d.sleep <= 9 && !d._celebrated.sleep) {
+    d._celebrated.sleep = true;
+    showToast('Perfect sleep logged!', '😴');
+  }
+  if (+d.water >= 2 && !d._celebrated.water) {
+    d._celebrated.water = true;
+    showToast('2L water goal hit!', '💧');
+  }
+
+  // Milestone thresholds
+  if (newScore >= 80 && oldScore < 80) {
+    launchConfetti(1);
+    showToast('80% complete — great day!', '🔥');
+  }
+  if (newScore === 100 && oldScore < 100) {
+    launchConfetti(2);
+    setTimeout(() => launchConfetti(1.5), 600);
+    showToast('PERFECT DAY — 100%!!! 🎉', '🏆');
+  }
+}
+
+// ═══════════════════════════════════════════════
+// DATE HELPERS
+// ═══════════════════════════════════════════════
+
+function fmtDate(key) {
+  const today = todayKey();
+  const yd = new Date(); yd.setDate(yd.getDate()-1);
+  if (key === today) return 'Today';
+  if (key === yd.toISOString().slice(0,10)) return 'Yesterday';
+  const d = new Date(key+'T12:00:00');
+  return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+
+function fmtShort(key) {
+  const d = new Date(key+'T12:00:00');
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+function prevKey(dateStr) {
+  const d = new Date(dateStr+'T12:00:00'); d.setDate(d.getDate()-1);
+  return d.toISOString().slice(0,10);
+}
+
+// ═══════════════════════════════════════════════
+// STREAK
+// ═══════════════════════════════════════════════
+
+function calcStreak() {
+  let n = 0;
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(); d.setDate(d.getDate()-i);
+    if (score(loadDay(d.toISOString().slice(0,10))).pct >= 50) n++;
+    else break;
+  }
+  return n;
+}
+
+// ═══════════════════════════════════════════════
+// HISTORY ARRAY
+// ═══════════════════════════════════════════════
+
+function getHistory(n) {
+  const res = [];
+  for (let i = n-1; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate()-i);
+    const key = d.toISOString().slice(0,10);
+    const data = loadDay(key);
+    res.push({ key, data, ...score(data) });
+  }
+  return res;
+}
+
+// ═══════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════
+
+function renderDashboard() {
+  const td = loadDay(todayKey());
+  const { done, total, pct } = score(td);
+  const circ = 169.6;
+  document.getElementById('d-ring').style.strokeDashoffset = circ - circ * pct / 100;
+  document.getElementById('d-rnum').textContent = pct + '%';
+  const lbls = ['Start tracking','Keep going','Halfway there','Looking good!','On fire! 🔥','Perfect! 🏆'];
+  document.getElementById('d-lbl').textContent = lbls[Math.min(Math.floor(pct/20), lbls.length-1)];
+  document.getElementById('d-sub').textContent = `${done} of ${total} habits done today`;
+  document.getElementById('d-streak').textContent = calcStreak();
+
+  const h30 = getHistory(30);
+  const h14 = getHistory(14);
+  const h7  = getHistory(7);
+
+  // Weight card
+  const wVals = h7.map(x => +x.data.weight||null);
+  const wFilt = wVals.filter(Boolean);
+  const wAvg = wFilt.length ? wFilt.reduce((a,b)=>a+b,0)/wFilt.length : null;
+  const w30Filt = h30.map(x=>+x.data.weight||null).filter(Boolean);
+  const wTrend = w30Filt.length >= 14
+    ? w30Filt.slice(-7).reduce((a,b)=>a+b,0)/7 - w30Filt.slice(0,7).reduce((a,b)=>a+b,0)/7
+    : null;
+  document.getElementById('mc-wval').textContent = wAvg ? wAvg.toFixed(1) : '—';
+  const wb = document.getElementById('mc-wbadge');
+  if (wTrend != null) {
+    wb.textContent = (wTrend>0?'+':'')+wTrend.toFixed(1)+'kg 30d';
+    wb.className = 'badge '+(wTrend<=0?'dn':'up');
+  }
+  sparkline(document.getElementById('sp-w'), wVals.map(v=>v||null), '#7c6fff');
+
+  // Steps card
+  const stVals = h7.map(x => +x.data.steps||0);
+  const stAvg = stVals.reduce((a,b)=>a+b,0)/7;
+  document.getElementById('mc-sval').textContent = stAvg >= 1000 ? (stAvg/1000).toFixed(1)+'k' : Math.round(stAvg);
+  const sb = document.getElementById('mc-sbadge');
+  sb.textContent = stAvg >= 10000 ? 'Goal ✓' : Math.round(stAvg/10000*100)+'% of goal';
+  sb.className = 'badge '+(stAvg>=10000?'dn':'ok');
+  sparkline(document.getElementById('sp-s'), stVals, '#4facfe');
+
+  // Sleep card
+  const slVals = h7.map(x=>x.data.sleep||null);
+  const slFilt = slVals.filter(Boolean);
+  const slAvg = slFilt.length ? slFilt.reduce((a,b)=>a+b,0)/slFilt.length : 0;
+  document.getElementById('mc-slval').textContent = slAvg ? slAvg.toFixed(1) : '—';
+  const slb = document.getElementById('mc-slbadge');
+  slb.textContent = slAvg >= 7 && slAvg <= 9 ? 'In range ✓' : slAvg > 0 ? (slAvg < 7 ? 'Too little' : 'Too much') : '—';
+  slb.className = 'badge '+(slAvg>=7&&slAvg<=9?'dn':slAvg>0?'up':'na');
+  sparkline(document.getElementById('sp-sl'), slVals.map(v=>v||null), '#fd9644');
+
+  // Completion card
+  const cVals = h7.map(x=>x.pct);
+  const cAvg = cVals.reduce((a,b)=>a+b,0)/7;
+  document.getElementById('mc-cval').textContent = Math.round(cAvg);
+  const cb = document.getElementById('mc-cbadge');
+  cb.textContent = cAvg >= 70 ? 'Strong 💪' : cAvg >= 50 ? 'Building' : 'Keep going';
+  cb.className = 'badge '+(cAvg>=70?'dn':cAvg>=50?'ok':'na');
+  sparkline(document.getElementById('sp-c'), cVals, '#2ecc71');
+
+  // Weight chart 30d
+  const wMin = Math.min(...w30Filt), wMax = Math.max(...w30Filt);
+  document.getElementById('wt-rng').textContent = w30Filt.length ? `${wMin.toFixed(1)}–${wMax.toFixed(1)} kg` : '30 days';
+  lineChart(document.getElementById('ch-weight'),
+    h30.map(x=>+x.data.weight||null),
+    h30.map(x=>fmtShort(x.key)),
+    { color:'#7c6fff', H:150, unit:'kg' }
+  );
+
+  // Steps 14d bar
+  barChart(document.getElementById('ch-steps'),
+    h14.map(x=>+x.data.steps||0),
+    h14.map(x=>fmtShort(x.key)),
+    { color:'#4facfe', H:120, goal:10000, goalColor:'#2ecc71' }
+  );
+
+  // Sleep 14d line
+  lineChart(document.getElementById('ch-sleep'),
+    h14.map(x=>x.data.sleep||null),
+    h14.map(x=>fmtShort(x.key)),
+    { color:'#fd9644', H:110, goal:7, goalColor:'#2ecc71', unit:'h' }
+  );
+
+  // Completion 14d bar
+  barChart(document.getElementById('ch-comp'),
+    h14.map(x=>x.pct),
+    h14.map(x=>fmtShort(x.key)),
+    { color:'#7c6fff', H:100, goal:80, goalColor:'#2ecc71' }
+  );
+}
+
+// ═══════════════════════════════════════════════
+// LOG STATE
+// ═══════════════════════════════════════════════
+
+let logDate = todayKey();
+let day = loadDay(logDate);
+
+function renderLog() {
+  day = loadDay(logDate);
+  document.getElementById('dlbl').textContent = fmtDate(logDate);
+  document.getElementById('nextDay').style.opacity = logDate >= todayKey() ? '.3' : '1';
+
+  // Inputs
+  document.getElementById('l-weight').value = day.weight || '';
+  document.getElementById('l-steps').value  = day.steps  || '';
+  document.getElementById('l-water').value  = day.water  || '';
+  document.getElementById('l-protein').value = day.protein || '';
+  document.getElementById('l-carbs').value   = day.carbs   || '';
+  document.getElementById('l-fat').value     = day.fat     || '';
+  document.getElementById('l-notes').value   = day.notes   || '';
+  document.getElementById('l-content-note').value = day.contentNote || '';
+
+  // Steppers
+  document.getElementById('lv-fast').textContent  = day.fast  || 0;
+  document.getElementById('lv-sleep').textContent = day.sleep || 0;
+
+  // Quick taps
+  renderQTaps();
+
+  // Content checkbox
+  document.getElementById('cb-content').classList.toggle('on', !!day.contentPublished);
+
+  // Book pages
+  renderBookPages();
+
+  // Workout
+  document.getElementById('rest-tog').checked = !!day.restDay;
+  updateRestUI();
+  document.getElementById('cb-wk1').classList.toggle('on', !!day.workout1);
+  document.getElementById('cb-wk2').classList.toggle('on', !!day.workout2);
+  document.getElementById('wkc-1').classList.toggle('done', !!day.workout1);
+  document.getElementById('wkc-2').classList.toggle('done', !!day.workout2);
+  document.getElementById('wk-n1').value = day.workout1notes || '';
+  document.getElementById('wk-n2').value = day.workout2notes || '';
+
+  // Fibre
+  for (let i=0; i<3; i++) document.getElementById('fp-'+i).classList.toggle('on', !!(day.fibre&&day.fibre[i]));
+
+  updateMacroUI();
+  updateWaterUI();
+  updateDerived();
+}
+
+function renderQTaps() {
+  const set = (id, active, val) => {
+    document.getElementById('qb-'+id).classList.toggle('on', active);
+    document.getElementById('qv-'+id).textContent = val;
+  };
+  set('multi', !!day.multivitamin, day.multivitamin ? 'Done ✓' : 'tap');
+  set('mag',   !!day.magnesium,    day.magnesium   ? 'Done ✓' : 'tap');
+  set('med',   day.meditation>0,   day.meditation>0 ? day.meditation+'min ✓' : 'tap');
+  set('alc',   !!day.noAlcohol,    day.noAlcohol   ? 'Clean day ✓' : 'tap');
+  set('cont',  !!day.contentPublished, day.contentPublished ? 'Published ✓' : 'tap');
+  if (day.contentPublished) document.getElementById('qb-cont').classList.add('on-pu');
+}
+
+function renderBookPages() {
+  const container = document.getElementById('book-pages');
+  container.innerHTML = '';
+  const goal = 10;
+  for (let i = 0; i < goal; i++) {
+    const p = document.createElement('div');
+    p.className = 'bpage' + (i < day.bookPages ? ' on' : '');
+    p.title = `Page ${i+1}`;
+    p.onclick = () => {
+      day.bookPages = i < day.bookPages ? i : i + 1;
+      const old = score(day).pct;
+      saveDay(logDate, day);
+      renderBookPages();
+      updateDerived();
+      const nw = score(day).pct;
+      checkCelebration(day, nw, old);
+    };
+    container.appendChild(p);
+  }
+  const pages = Math.min(day.bookPages || 0, goal);
+  document.getElementById('lv-book').textContent = pages + '/' + goal;
+  document.getElementById('lc-book').classList.toggle('done', pages >= goal);
+}
+
+function updateMacroUI() {
+  const p=+day.protein||0, c=+day.carbs||0, f=+day.fat||0;
+  const pcal=p*4, ccal=c*4, fcal=f*9, total=pcal+ccal+fcal;
+  document.getElementById('lv-cals').textContent = total.toLocaleString();
+  document.getElementById('ls-macros').textContent = total>0 ? `${p}g P · ${c}g C · ${f}g F` : 'Enter today\'s food';
+  if (total > 0) {
+    document.getElementById('mbar-p').style.flex = Math.max(pcal, 1);
+    document.getElementById('mbar-c').style.flex = Math.max(ccal, 1);
+    document.getElementById('mbar-f').style.flex = Math.max(fcal, 1);
+  }
+  document.getElementById('lc-macros').classList.toggle('done', total > 0);
+}
+
+function updateWaterUI() {
+  const water = +day.water || 0;
+  const filled = Math.round((water / 2) * 8);
+  const cont = document.getElementById('wdrops');
+  cont.innerHTML = '';
+  for (let i = 0; i < 8; i++) {
+    const d = document.createElement('div');
+    d.className = 'wd' + (i < filled ? ' on' : '');
+    d.textContent = i < filled ? '💧' : '·';
+    d.onclick = ((idx) => () => {
+      const nF = idx < filled ? idx : idx + 1;
+      const nL = Math.round((nF / 8) * 2 * 10) / 10;
+      day.water = nL.toString();
+      document.getElementById('l-water').value = nL;
+      saveDay(logDate, day);
+      updateWaterUI(); updateDerived();
+      const nw = score(day).pct; checkCelebration(day, nw, prevScore);
+    })(i);
+    cont.appendChild(d);
+  }
+  document.getElementById('ls-water').textContent = water >= 2 ? `${water}L — goal reached ✓` : `${water.toFixed(1)}L of 2L`;
+  document.getElementById('lc-water').classList.toggle('done', water >= 2);
+}
+
+function updateDerived() {
+  const steps = +document.getElementById('l-steps').value || 0;
+  document.getElementById('lp-steps').style.width = Math.min(100, (steps/10000)*100) + '%';
+  document.getElementById('lp-steps').style.background = steps >= 10000 ? 'var(--gr)' : 'var(--bl)';
+  document.getElementById('lc-steps').classList.toggle('done', steps >= 10000);
+
+  const sleep = day.sleep;
+  document.getElementById('ls-sleep').textContent = sleep===0 ? 'Goal: 7–9 hours'
+    : sleep<7 ? `${sleep}h — get more rest` : sleep>9 ? `${sleep}h — a lot!` : `${sleep}h ✓`;
+
+  const fast = day.fast;
+  document.getElementById('ls-fast').textContent = fast===0 ? 'Hours fasted today'
+    : fast<12 ? `${fast}h fasted` : `${fast}h ✓`;
+
+  const wd = loadDay(prevKey(logDate));
+  const wCur=+day.weight, wPrev=+wd.weight;
+  if (wCur && wPrev) {
+    const diff=(wCur-wPrev).toFixed(1);
+    document.getElementById('ls-weight').textContent = (diff>0?'+':'')+diff+'kg vs yesterday';
+    document.getElementById('ls-weight').style.color = diff<=0?'var(--gr)':'var(--or)';
+  } else {
+    document.getElementById('ls-weight').textContent = 'Enter today\'s weight';
+    document.getElementById('ls-weight').style.color = '';
+  }
+
+  const fib=(day.fibre||[]).filter(Boolean).length;
+  document.getElementById('ls-fibre').textContent = fib===3?'All 3 meals ✓':`${fib}/3 meals`;
+  document.getElementById('lc-fibre').classList.toggle('done', fib>=3);
+
+  document.getElementById('lc-fast').classList.toggle('done', fast>=12);
+  document.getElementById('lc-sleep').classList.toggle('done', sleep>=7&&sleep<=9);
+
+  const content = day.contentPublished;
+  document.getElementById('lc-content').classList.toggle('done', !!content);
+  document.getElementById('ls-content').textContent = content ? 'Published today ✓' : 'Did you publish something today?';
+
+  document.getElementById('wkc-1').classList.toggle('done', !!day.workout1);
+  document.getElementById('wkc-2').classList.toggle('done', !!day.workout2);
+}
+
+function updateRestUI() {
+  const isRest = !!day.restDay;
+  const slots = document.getElementById('wk-slots');
+  slots.style.opacity = isRest ? '.3' : '1';
+  slots.style.pointerEvents = isRest ? 'none' : '';
+}
+
+// ═══════════════════════════════════════════════
+// LOG HANDLERS
+// ═══════════════════════════════════════════════
+
+function saveF(key, val) {
+  day[key] = val; saveDay(logDate, day);
+  updateDerived();
+}
+
+function step(field, delta) {
+  const cfg = { fast:{min:0,max:24}, sleep:{min:0,max:16} };
+  const c = cfg[field];
+  const v = Math.max(c.min, Math.min(c.max, Math.round((day[field]||0 + delta)*10)/10));
+  day[field] = v; saveDay(logDate, day);
+  document.getElementById('lv-'+field).textContent = v;
+  const old = prevScore;
+  const nw = score(day).pct; checkCelebration(day, nw, old);
+  updateDerived();
+}
+
+function toggleQ(field, qbId) {
+  const old = score(day).pct;
+  day[field] = !day[field];
+  saveDay(logDate, day);
+  renderQTaps();
+  const nw = score(day).pct;
+  checkCelebration(day, nw, old);
+  updateDerived();
+}
+
+function cycleQ(field, qbId, vals) {
+  const old = score(day).pct;
+  const cur = day[field]||0;
+  const idx = vals.indexOf(cur);
+  day[field] = vals[(idx+1)%vals.length];
+  saveDay(logDate, day);
+  renderQTaps();
+  const nw = score(day).pct; checkCelebration(day, nw, old);
+}
+
+function togCheck(field, cbId) {
+  const old = score(day).pct;
+  day[field] = !day[field];
+  if (field === 'contentPublished') {
+    document.getElementById('qb-cont').classList.toggle('on', !!day[field]);
+    document.getElementById('qv-cont').textContent = day[field] ? 'Published ✓' : 'tap';
+  }
+  saveDay(logDate, day);
+  document.getElementById(cbId).classList.toggle('on', !!day[field]);
+  const nw = score(day).pct; checkCelebration(day, nw, old);
+  updateDerived();
+}
+
+function togFibre(idx) {
+  day.fibre = day.fibre||[false,false,false];
+  day.fibre[idx] = !day.fibre[idx];
+  saveDay(logDate, day);
+  document.getElementById('fp-'+idx).classList.toggle('on', day.fibre[idx]);
+  updateDerived();
+}
+
+function onMacro() {
+  const old = score(day).pct;
+  day.protein = document.getElementById('l-protein').value;
+  day.carbs   = document.getElementById('l-carbs').value;
+  day.fat     = document.getElementById('l-fat').value;
+  saveDay(logDate, day);
+  updateMacroUI();
+  const nw = score(day).pct; checkCelebration(day, nw, old);
+}
+
+function onWater() {
+  day.water = document.getElementById('l-water').value;
+  saveDay(logDate, day);
+  updateWaterUI(); updateDerived();
+  const nw = score(day).pct; checkCelebration(day, nw, prevScore);
+}
+
+function onRest() {
+  day.restDay = document.getElementById('rest-tog').checked;
+  saveDay(logDate, day);
+  updateRestUI();
+}
+
+// ═══════════════════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════════════════
+
+let calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
+
+function renderHistory() { renderCal(); renderHistList(); }
+
+function renderCal() {
+  document.getElementById('cal-title').textContent =
+    new Date(calYear, calMonth).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  const grid = document.getElementById('cal-grid');
+  const today = todayKey();
+  let html = ['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=>`<div class="cal-dlbl">${d}</div>`).join('');
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMo = new Date(calYear, calMonth+1, 0).getDate();
+  for (let b=0; b<firstDay; b++) html += '<div class="cal-cell empty">·</div>';
+  for (let d=1; d<=daysInMo; d++) {
+    const key = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if (key > today) { html += `<div class="cal-cell" style="background:var(--s2);color:var(--mu);opacity:.3">${d}</div>`; continue; }
+    const { pct } = score(loadDay(key));
+    let bg, tc;
+    if(pct===0){bg='var(--s2)';tc='var(--mu)';}
+    else if(pct<40){bg='rgba(255,92,92,.18)';tc='#ff8888';}
+    else if(pct<60){bg='rgba(253,150,68,.2)';tc='var(--or)';}
+    else if(pct<80){bg='rgba(79,172,254,.2)';tc='var(--bl)';}
+    else{bg='rgba(46,204,113,.22)';tc='var(--gr)';}
+    const border = key===today?'box-shadow:0 0 0 2px var(--pu);':'';
+    html += `<div class="cal-cell" style="background:${bg};color:${tc};${border}" onclick="openDay('${key}')">${d}</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function calPrev(){ calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCal(); }
+function calNext(){ calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCal(); renderHistList(); }
+
+function openDay(key) { logDate = key; switchTab('log'); }
+
+function renderHistList() {
+  const list = document.getElementById('hist-list');
+  const days = [];
+  for (let i=0; i<30; i++) {
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const key = d.toISOString().slice(0,10);
+    const data = loadDay(key);
+    days.push({ key, data, ...score(data) });
+  }
+  list.innerHTML = days.map(({key,data,pct})=>{
+    let bg,tc;
+    if(pct>=80){bg='rgba(46,204,113,.18)';tc='var(--gr)';}
+    else if(pct>=60){bg='rgba(79,172,254,.18)';tc='var(--bl)';}
+    else if(pct>=40){bg='rgba(253,150,68,.18)';tc='var(--or)';}
+    else if(pct>0){bg='rgba(255,92,92,.15)';tc='var(--rd)';}
+    else{bg='var(--s2)';tc='var(--mu)';}
+    const w = data.weight ? data.weight+'kg' : '—';
+    const st = data.steps ? (+data.steps).toLocaleString()+' steps' : '—';
+    const sl = data.sleep ? data.sleep+'h sleep' : '—';
+    const extras = [
+      data.contentPublished ? '✍️' : '',
+      data.bookPages>=10 ? '📖' : '',
+      data.noAlcohol ? '🚫🍺' : '',
+    ].filter(Boolean).join(' ');
+    return `<div class="hist-item" onclick="openDay('${key}')">
+      <div class="hist-sc" style="background:${bg};color:${tc}">${pct}%</div>
+      <div class="hist-info">
+        <div class="hist-dt">${fmtDate(key)} ${extras}</div>
+        <div class="hist-mt">${w} · ${st} · ${sl}</div>
+      </div>
+      <div style="color:var(--mu);font-size:14px">›</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab===name));
+  document.getElementById('view-log').style.display       = name==='log'       ? 'block' : 'none';
+  document.getElementById('view-dashboard').style.display = name==='dashboard' ? 'block' : 'none';
+  document.getElementById('view-history').style.display   = name==='history'   ? 'block' : 'none';
+  document.getElementById('dnavWrap').style.display       = name==='log'       ? 'flex'  : 'none';
+  if (name==='log')       renderLog();
+  if (name==='dashboard') renderDashboard();
+  if (name==='history')   renderHistory();
+}
+
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', ()=>switchTab(t.dataset.tab)));
+
+document.getElementById('prevDay').addEventListener('click', ()=>{
+  const d=new Date(logDate+'T12:00:00'); d.setDate(d.getDate()-1);
+  logDate=d.toISOString().slice(0,10); renderLog();
+});
+document.getElementById('nextDay').addEventListener('click', ()=>{
+  if (logDate>=todayKey()) return;
+  const d=new Date(logDate+'T12:00:00'); d.setDate(d.getDate()+1);
+  logDate=d.toISOString().slice(0,10); renderLog();
+});
+
+document.getElementById('l-weight').addEventListener('input', function() {
+  const old=score(day).pct; day.weight=this.value; saveDay(logDate,day); updateDerived();
+  checkCelebration(day,score(day).pct,old);
+});
+document.getElementById('l-steps').addEventListener('input', function() {
+  const old=score(day).pct; day.steps=this.value; saveDay(logDate,day); updateDerived();
+  checkCelebration(day,score(day).pct,old);
+});
+
+// ═══════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════
+
+generateSampleData();
+switchTab('log');
+
+</script>
+</body>
+</html>
