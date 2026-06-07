@@ -195,7 +195,14 @@
     .pop { animation: pop-in .3s ease; }
     @keyframes celebrate-glow { 0%,100% { box-shadow: none; } 50% { box-shadow: 0 0 20px var(--gr), 0 0 40px rgba(46,204,113,.3); } }
     .glow-celebrate { animation: celebrate-glow .6s ease; }
+    /* Sync status dot */
+    #sync-dot { width: 8px; height: 8px; border-radius: 50%; background: transparent; flex-shrink: 0; transition: background .4s; }
+    #sync-dot.synced  { background: var(--gr); }
+    #sync-dot.syncing { background: var(--or); animation: pulse-dot 1s infinite; }
+    #sync-dot.error   { background: var(--rd); }
+    @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 
@@ -206,6 +213,7 @@
 <div class="hdr">
   <div class="hdr-top">
     <div class="logo">Daily <span>Tracker</span></div>
+    <div id="sync-dot" title="Sync status"></div>
     <div class="dnav" id="dnavWrap" style="display:none">
       <button id="prevDay">‹</button>
       <div class="dlbl" id="dlbl">Today</div>
@@ -522,10 +530,98 @@ function defDay() {
   };
 }
 
+// ── SUPABASE CONFIG ────────────────────────────────────────────────
+// 1. Create a project at https://supabase.com
+// 2. Run the SQL in the README to create the daily_logs table
+// 3. Paste your project URL and anon key below
+const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+const SUPABASE_KEY = 'YOUR_ANON_KEY';
+const USER_ID      = 'shameek';
+
+const _sbConfigured = !SUPABASE_URL.includes('YOUR_PROJECT');
+const _sb = _sbConfigured ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+// In-memory cache (avoids async on every read)
+const _cache = {};
+
+function setSyncStatus(s) {
+  const dot = document.getElementById('sync-dot');
+  if (dot) { dot.className = s; dot.title = s === 'synced' ? 'Synced' : s === 'syncing' ? 'Syncing…' : 'Sync error'; }
+}
+
 function dk(date) { return 'dt_' + date; }
-function loadDay(date) { try { return Object.assign(defDay(), JSON.parse(localStorage.getItem(dk(date)))); } catch { return defDay(); } }
-function saveDay(date, data) { localStorage.setItem(dk(date), JSON.stringify(data)); }
 function todayKey() { return new Date().toISOString().slice(0,10); }
+
+function loadDay(date) {
+  if (_cache[date]) return Object.assign(defDay(), _cache[date]);
+  try {
+    const raw = localStorage.getItem(dk(date));
+    if (raw) { const d = JSON.parse(raw); _cache[date] = d; return Object.assign(defDay(), d); }
+  } catch {}
+  return defDay();
+}
+
+// Used for real user saves — writes to cache, localStorage, and queues Supabase upsert
+function saveDay(date, data) {
+  _cache[date] = data;
+  localStorage.setItem(dk(date), JSON.stringify(data));
+  _queueSync(date, data);
+}
+
+// Used only by sample-data generator — writes locally, never touches Supabase
+function saveDayLocal(date, data) {
+  _cache[date] = data;
+  localStorage.setItem(dk(date), JSON.stringify(data));
+}
+
+// Debounced Supabase upsert (800ms after last change)
+const _syncTimers = {};
+function _queueSync(date, data) {
+  if (!_sbConfigured) return;
+  clearTimeout(_syncTimers[date]);
+  _syncTimers[date] = setTimeout(() => _syncOne(date, data), 800);
+}
+
+async function _syncOne(date, data) {
+  setSyncStatus('syncing');
+  try {
+    const { error } = await _sb.from('daily_logs').upsert(
+      { user_id: USER_ID, date, data, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id,date' }
+    );
+    if (error) throw error;
+    setSyncStatus('synced');
+  } catch (e) {
+    console.warn('Supabase sync error:', e.message);
+    setSyncStatus('error');
+  }
+}
+
+// Pull all rows from Supabase into local cache on startup
+async function _pullFromSupabase() {
+  if (!_sbConfigured) return;
+  setSyncStatus('syncing');
+  try {
+    const { data, error } = await _sb
+      .from('daily_logs')
+      .select('date, data')
+      .eq('user_id', USER_ID)
+      .order('date', { ascending: false })
+      .limit(90);
+    if (error) throw error;
+    (data || []).forEach(row => {
+      _cache[row.date] = row.data;
+      localStorage.setItem(dk(row.date), JSON.stringify(row.data));
+    });
+    setSyncStatus('synced');
+    // Refresh whichever view is active
+    if (document.getElementById('view-log').style.display !== 'none') renderLog();
+    if (document.getElementById('view-dashboard').style.display !== 'none') renderDashboard();
+  } catch (e) {
+    console.warn('Supabase pull error:', e.message);
+    setSyncStatus('error');
+  }
+}
 
 // ═══════════════════════════════════════════════
 // SEEDED RANDOM
@@ -578,7 +674,7 @@ function generateSampleData() {
     const contentItems = ['Instagram post on fasting + weight loss','LinkedIn article on productivity habits','Twitter thread on morning routines','Blog post on intermittent fasting science','YouTube video: 30-day transformation','Podcast episode on health & discipline','Newsletter: weekly health roundup'];
     const cIdx = Math.floor(r() * contentItems.length);
 
-    saveDay(key, {
+    saveDayLocal(key, {
       weight, fast, steps: steps.toString(), sleep,
       protein: protein.toString(), carbs: carbs.toString(), fat: fat.toString(),
       water: water.toString(), fibre,
@@ -1368,8 +1464,9 @@ document.getElementById('l-steps').addEventListener('input', function() {
 // BOOT
 // ═══════════════════════════════════════════════
 
-generateSampleData();
-switchTab('log');
+generateSampleData();   // fills localStorage with demo data if empty
+switchTab('log');       // render immediately from local cache
+_pullFromSupabase();    // async: pulls real data from Supabase, re-renders when done
 
 </script>
 </body>
