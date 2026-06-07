@@ -23,7 +23,12 @@
     .dnav { display: flex; align-items: center; gap: 8px; }
     .dnav button { background: var(--s2); border: 1px solid var(--bd); color: var(--tx); border-radius: var(--rs); width: 30px; height: 30px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: background .15s; }
     .dnav button:hover { background: var(--s3); }
-    .dlbl { font-size: 12px; font-weight: 700; color: var(--mu2); min-width: 88px; text-align: center; }
+    .dlbl { font-size: 13px; font-weight: 800; color: var(--tx); min-width: 88px; text-align: center; }
+
+    /* Past-day banner */
+    #past-banner { background: rgba(253,150,68,.13); border: 1px solid rgba(253,150,68,.4); border-radius: var(--rr); padding: 11px 14px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 700; color: var(--or); }
+    #past-banner button { background: rgba(253,150,68,.18); border: 1px solid rgba(253,150,68,.5); border-radius: 99px; color: var(--or); font-size: 12px; font-weight: 700; padding: 5px 13px; cursor: pointer; transition: background .15s; white-space: nowrap; }
+    #past-banner button:hover { background: rgba(253,150,68,.3); }
     .tabs { display: flex; }
     .tab { flex: 1; padding: 10px 0 12px; text-align: center; font-size: 13px; font-weight: 600; color: var(--mu); cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; user-select: none; }
     .tab.on { color: var(--pu); border-bottom-color: var(--pu); }
@@ -218,6 +223,12 @@
 
 <!-- ═══════════ LOG ═══════════ -->
 <div id="view-log">
+
+  <!-- Past-day banner -->
+  <div id="past-banner" style="display:none">
+    <span id="past-banner-date"></span>
+    <button onclick="goToToday()">Back to Today →</button>
+  </div>
 
   <!-- Quick taps -->
   <div class="sec-lbl slbl">Quick Log</div>
@@ -982,10 +993,21 @@ function renderDashboard() {
 let logDate = todayKey();
 let day = loadDay(logDate);
 
+function goToToday() {
+  logDate = todayKey();
+  renderLog();
+}
+
 function renderLog() {
   day = loadDay(logDate);
   document.getElementById('dlbl').textContent = fmtDate(logDate);
   document.getElementById('nextDay').style.opacity = logDate >= todayKey() ? '.3' : '1';
+
+  // Past-day banner
+  const isPast = logDate !== todayKey();
+  const banner = document.getElementById('past-banner');
+  banner.style.display = isPast ? 'flex' : 'none';
+  document.getElementById('past-banner-date').textContent = '📅 ' + fmtDate(logDate);
 
   // Inputs
   document.getElementById('l-weight').value = day.weight || '';
