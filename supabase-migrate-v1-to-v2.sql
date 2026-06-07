@@ -12,6 +12,7 @@ select
   nullif(data->>'sleep',  '0')::decimal,
   nullif(data->>'steps',  '')::integer
 from daily_logs
+where user_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
 on conflict (user_id, date) do nothing;
 
 insert into nutrition (user_id, date, protein_g, carbs_g, fat_g, water_l,
@@ -27,6 +28,7 @@ select
   coalesce((data->'fibre'->1)::text::boolean, false),
   coalesce((data->'fibre'->2)::text::boolean, false)
 from daily_logs
+where user_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
 on conflict (user_id, date) do nothing;
 
 insert into habits (user_id, date, multivitamin, magnesium, meditation_min,
@@ -43,6 +45,7 @@ select
   coalesce((data->>'bookPages')::smallint,        0),
   nullif(data->>'notes', '')
 from daily_logs
+where user_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
 on conflict (user_id, date) do nothing;
 
 insert into workouts (user_id, date, rest_day,
@@ -57,4 +60,5 @@ select
   coalesce((data->>'workout2')::boolean,  false),
   nullif(data->>'workout2notes', '')
 from daily_logs
+where user_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
 on conflict (user_id, date) do nothing;
