@@ -200,13 +200,18 @@
     .login-box { text-align: center; padding: 48px 32px; max-width: 360px; width: 100%; }
     .login-logo { font-size: 30px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 8px; }
     .login-logo span { color: var(--pu); }
-    .login-tagline { color: var(--mu2); font-size: 14px; margin-bottom: 40px; line-height: 1.5; }
-    .login-divider { display: flex; align-items: center; gap: 12px; margin: 28px 0; color: var(--mu); font-size: 12px; }
-    .login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: var(--bd); }
-    #google-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 14px 20px; background: #fff; color: #1f1f1f; border: none; border-radius: var(--rr); font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity .15s, transform .1s; }
-    #google-btn:hover { opacity: .92; }
-    #google-btn:active { transform: scale(.97); }
-    #google-btn:disabled { opacity: .5; cursor: default; }
+    .login-tagline { color: var(--mu2); font-size: 14px; margin-bottom: 28px; line-height: 1.5; }
+    .auth-input { display: block; width: 100%; background: var(--s2); border: 1px solid var(--bd); border-radius: var(--rs); color: var(--tx); font-size: 15px; padding: 13px 14px; margin-bottom: 10px; outline: none; transition: border-color .15s; font-family: inherit; }
+    .auth-input:focus { border-color: var(--pu); }
+    .auth-input::placeholder { color: var(--mu); }
+    .auth-error { font-size: 13px; padding: 10px 12px; border-radius: var(--rs); margin-bottom: 12px; background: rgba(255,92,92,.12); border: 1px solid rgba(255,92,92,.3); color: var(--rd); }
+    .auth-error.ok { background: rgba(46,204,113,.12); border-color: rgba(46,204,113,.3); color: var(--gr); }
+    .auth-submit { display: block; width: 100%; padding: 14px; background: var(--pu); color: #fff; border: none; border-radius: var(--rr); font-size: 15px; font-weight: 700; cursor: pointer; transition: opacity .15s, transform .1s; margin-bottom: 16px; font-family: inherit; }
+    .auth-submit:hover { opacity: .88; }
+    .auth-submit:active { transform: scale(.98); }
+    .auth-submit:disabled { opacity: .45; cursor: default; }
+    .auth-toggle { font-size: 13px; color: var(--mu2); }
+    .auth-toggle a { color: var(--pu); cursor: pointer; font-weight: 600; margin-left: 4px; }
 
     /* ── USER AVATAR ── */
     .user-wrap { position: relative; flex-shrink: 0; }
@@ -234,16 +239,15 @@
 <div id="login-screen">
   <div class="login-box">
     <div class="login-logo">Daily <span>Tracker</span></div>
-    <p class="login-tagline">Track your habits.<br>Own your data.</p>
-    <button id="google-btn" onclick="signInWithGoogle()">
-      <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-        <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908C16.658 14.013 17.64 11.71 17.64 9.2z"/>
-        <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
-        <path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/>
-        <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z"/>
-      </svg>
-      Continue with Google
-    </button>
+    <p class="login-tagline" id="auth-tagline">Sign in to your account</p>
+    <input type="email"    id="auth-email"    class="auth-input" placeholder="Email address"  autocomplete="email" />
+    <input type="password" id="auth-password" class="auth-input" placeholder="Password"       autocomplete="current-password" />
+    <div id="auth-error" class="auth-error" style="display:none"></div>
+    <button id="auth-submit" class="auth-submit" onclick="submitAuth()">Sign In</button>
+    <div class="auth-toggle">
+      <span id="auth-toggle-text">No account?</span>
+      <a id="auth-toggle-link" onclick="toggleAuthMode()">Create one →</a>
+    </div>
   </div>
 </div>
 
@@ -1502,6 +1506,9 @@ document.getElementById('nextDay').addEventListener('click', ()=>{
   logDate=d.toISOString().slice(0,10); renderLog();
 });
 
+document.getElementById('auth-email').addEventListener('keydown',    e => { if (e.key==='Enter') document.getElementById('auth-password').focus(); });
+document.getElementById('auth-password').addEventListener('keydown', e => { if (e.key==='Enter') submitAuth(); });
+
 document.getElementById('l-weight').addEventListener('input', function() {
   const old=score(day).pct; day.weight=this.value; saveDay(logDate,day); updateDerived();
   checkCelebration(day,score(day).pct,old);
@@ -1515,17 +1522,59 @@ document.getElementById('l-steps').addEventListener('input', function() {
 // AUTH
 // ═══════════════════════════════════════════════
 
-async function signInWithGoogle() {
-  const btn = document.getElementById('google-btn');
+let _authMode = 'signin';
+
+function toggleAuthMode() {
+  _authMode = _authMode === 'signin' ? 'signup' : 'signin';
+  const isSignup = _authMode === 'signup';
+  document.getElementById('auth-tagline').textContent    = isSignup ? 'Create your account'    : 'Sign in to your account';
+  document.getElementById('auth-submit').textContent     = isSignup ? 'Create Account'         : 'Sign In';
+  document.getElementById('auth-toggle-text').textContent = isSignup ? 'Have an account?'      : 'No account?';
+  document.getElementById('auth-toggle-link').textContent = isSignup ? 'Sign in →'             : 'Create one →';
+  document.getElementById('auth-password').autocomplete  = isSignup ? 'new-password'           : 'current-password';
+  const errEl = document.getElementById('auth-error');
+  errEl.style.display = 'none';
+  errEl.className = 'auth-error';
+}
+
+async function submitAuth() {
+  const email    = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errEl    = document.getElementById('auth-error');
+  const btn      = document.getElementById('auth-submit');
+
+  if (!email || !password) {
+    errEl.textContent = 'Please enter your email and password.';
+    errEl.className = 'auth-error'; errEl.style.display = 'block'; return;
+  }
+
   btn.disabled = true;
-  btn.textContent = 'Redirecting…';
-  const { error } = await _sb.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.href }
-  });
-  if (error) {
+  btn.textContent = _authMode === 'signin' ? 'Signing in…' : 'Creating account…';
+  errEl.style.display = 'none';
+
+  try {
+    const result = _authMode === 'signin'
+      ? await _sb.auth.signInWithPassword({ email, password })
+      : await _sb.auth.signUp({ email, password });
+
+    if (result.error) throw result.error;
+
+    // signUp with email confirmation enabled: no session yet
+    if (_authMode === 'signup' && result.data.user && !result.data.session) {
+      errEl.textContent = '✓ Check your email to confirm your account, then sign in.';
+      errEl.className = 'auth-error ok'; errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Create Account';
+      _authMode = 'signin'; // switch to sign-in mode after confirming
+      return;
+    }
+    // Success → onAuthStateChange fires and calls _showApp()
+  } catch (e) {
+    errEl.textContent = e.message === 'Invalid login credentials'
+      ? 'Incorrect email or password.'
+      : (e.message || 'Something went wrong. Try again.');
+    errEl.className = 'auth-error'; errEl.style.display = 'block';
     btn.disabled = false;
-    btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908C16.658 14.013 17.64 11.71 17.64 9.2z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z"/></svg> Continue with Google';
+    btn.textContent = _authMode === 'signin' ? 'Sign In' : 'Create Account';
   }
 }
 
