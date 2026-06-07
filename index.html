@@ -637,14 +637,94 @@ function _queueSync(date, data) {
   _syncTimers[date] = setTimeout(() => _syncOne(date, data), 800);
 }
 
+// ── DB ↔ APP mapping ──────────────────────────────────────────────
+
+function _toBodyMetrics(date, d) {
+  return {
+    user_id: USER_ID, date,
+    weight_kg:      d.weight  ? +d.weight  : null,
+    fasting_hours:  d.fast    || null,
+    sleep_hours:    d.sleep   || null,
+    steps:          d.steps   ? +d.steps   : null,
+  };
+}
+function _toNutrition(date, d) {
+  return {
+    user_id: USER_ID, date,
+    protein_g:       d.protein ? +d.protein : null,
+    carbs_g:         d.carbs   ? +d.carbs   : null,
+    fat_g:           d.fat     ? +d.fat     : null,
+    water_l:         d.water   ? +d.water   : null,
+    fibre_breakfast: !!(d.fibre && d.fibre[0]),
+    fibre_lunch:     !!(d.fibre && d.fibre[1]),
+    fibre_dinner:    !!(d.fibre && d.fibre[2]),
+  };
+}
+function _toHabits(date, d) {
+  return {
+    user_id: USER_ID, date,
+    multivitamin:      !!d.multivitamin,
+    magnesium:         !!d.magnesium,
+    meditation_min:    d.meditation  || 0,
+    no_alcohol:        !!d.noAlcohol,
+    content_published: !!d.contentPublished,
+    content_note:      d.contentNote || null,
+    book_pages:        d.bookPages   || 0,
+    notes:             d.notes       || null,
+  };
+}
+function _toWorkouts(date, d) {
+  return {
+    user_id: USER_ID, date,
+    rest_day:        !!d.restDay,
+    session_1_done:  !!d.workout1,
+    session_1_notes: d.workout1notes || null,
+    session_2_done:  !!d.workout2,
+    session_2_notes: d.workout2notes || null,
+  };
+}
+
+function _fromDB(b, n, h, w) {
+  return {
+    weight:         b?.weight_kg    != null ? String(b.weight_kg)  : '',
+    fast:           b?.fasting_hours ?? 0,
+    sleep:          b?.sleep_hours   ?? 0,
+    steps:          b?.steps         != null ? String(b.steps)     : '',
+    protein:        n?.protein_g     != null ? String(n.protein_g) : '',
+    carbs:          n?.carbs_g       != null ? String(n.carbs_g)   : '',
+    fat:            n?.fat_g         != null ? String(n.fat_g)     : '',
+    water:          n?.water_l       != null ? String(n.water_l)   : '',
+    fibre:          [!!n?.fibre_breakfast, !!n?.fibre_lunch, !!n?.fibre_dinner],
+    multivitamin:   !!h?.multivitamin,
+    magnesium:      !!h?.magnesium,
+    meditation:     h?.meditation_min    ?? 0,
+    noAlcohol:      !!h?.no_alcohol,
+    contentPublished: !!h?.content_published,
+    contentNote:    h?.content_note      ?? '',
+    bookPages:      h?.book_pages        ?? 0,
+    notes:          h?.notes             ?? '',
+    restDay:        !!w?.rest_day,
+    workout1:       !!w?.session_1_done,
+    workout1notes:  w?.session_1_notes   ?? '',
+    workout2:       !!w?.session_2_done,
+    workout2notes:  w?.session_2_notes   ?? '',
+  };
+}
+
+// ── Supabase sync ──────────────────────────────────────────────────
+
 async function _syncOne(date, data) {
   setSyncStatus('syncing');
   try {
-    const { error } = await _sb.from('daily_logs').upsert(
-      { user_id: USER_ID, date, data, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id,date' }
-    );
-    if (error) throw error;
+    const oc = { onConflict: 'user_id,date' };
+    const results = await Promise.all([
+      _sb.from('body_metrics').upsert(_toBodyMetrics(date, data), oc),
+      _sb.from('nutrition')   .upsert(_toNutrition(date, data),   oc),
+      _sb.from('habits')      .upsert(_toHabits(date, data),      oc),
+      _sb.from('workouts')    .upsert(_toWorkouts(date, data),    oc),
+    ]);
+    const err = results.map(r => r.error).find(Boolean);
+    if (err) throw err;
     setSyncStatus('synced');
   } catch (e) {
     console.warn('Supabase sync error:', e.message);
@@ -657,20 +737,30 @@ async function _pullFromSupabase() {
   if (!_canSync()) return;
   setSyncStatus('syncing');
   try {
-    const { data, error } = await _sb
-      .from('daily_logs')
-      .select('date, data')
-      .eq('user_id', USER_ID)
-      .order('date', { ascending: false })
-      .limit(90);
-    if (error) throw error;
-    (data || []).forEach(row => {
-      _cache[row.date] = row.data;
-      localStorage.setItem(dk(row.date), JSON.stringify(row.data));
+    const q = t => _sb.from(t).select('*').eq('user_id', USER_ID)
+                    .order('date', { ascending: false }).limit(90);
+    const [bR, nR, hR, wR] = await Promise.all([
+      q('body_metrics'), q('nutrition'), q('habits'), q('workouts'),
+    ]);
+    const errs = [bR, nR, hR, wR].map(r => r.error).filter(Boolean);
+    if (errs.length) throw errs[0];
+
+    // Index each table by date
+    const idx = {};
+    const put = (rows, key) => (rows || []).forEach(r => {
+      idx[r.date] = idx[r.date] || {};
+      idx[r.date][key] = r;
     });
+    put(bR.data, 'b'); put(nR.data, 'n'); put(hR.data, 'h'); put(wR.data, 'w');
+
+    Object.entries(idx).forEach(([date, rows]) => {
+      const d = _fromDB(rows.b, rows.n, rows.h, rows.w);
+      _cache[date] = d;
+      localStorage.setItem(dk(date), JSON.stringify(d));
+    });
+
     setSyncStatus('synced');
-    // Refresh whichever view is active
-    if (document.getElementById('view-log').style.display !== 'none') renderLog();
+    if (document.getElementById('view-log').style.display       !== 'none') renderLog();
     if (document.getElementById('view-dashboard').style.display !== 'none') renderDashboard();
   } catch (e) {
     console.warn('Supabase pull error:', e.message);
@@ -1627,43 +1717,19 @@ function _showApp(user) {
   _setUserUI(user);
 }
 
-// Migrate any Supabase data sitting under old hardcoded 'shameek' user_id
-async function _migrateOldData() {
-  const { count } = await _sb
-    .from('daily_logs')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', USER_ID);
-  if (count && count > 0) return; // user already has data under their real ID
-
-  const { data: oldRows } = await _sb
-    .from('daily_logs')
-    .select('date, data')
-    .eq('user_id', 'shameek');
-  if (!oldRows || oldRows.length === 0) return;
-
-  const migrated = oldRows.map(r => ({ user_id: USER_ID, date: r.date, data: r.data }));
-  await _sb.from('daily_logs').upsert(migrated, { onConflict: 'user_id,date' });
-}
-
 async function _initAuth() {
-  // Handle session after OAuth redirect or on normal load
   const { data: { session } } = await _sb.auth.getSession();
   if (session?.user) {
     _showApp(session.user);
-    await _migrateOldData();
     await _pullFromSupabase();
   } else {
     _showLoginScreen();
   }
 
-  // React to sign-in / sign-out events
   _sb.auth.onAuthStateChange(async (event, session) => {
     if (session?.user) {
       _showApp(session.user);
-      if (event === 'SIGNED_IN') {
-        await _migrateOldData();
-        await _pullFromSupabase();
-      }
+      if (event === 'SIGNED_IN') await _pullFromSupabase();
     } else {
       _showLoginScreen();
     }
